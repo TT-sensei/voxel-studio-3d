@@ -1396,7 +1396,7 @@
     document.getElementById('btn-export-json').addEventListener('click', () => {
       try {
         const exportObj = {
-          app: 'VOXEL STUDIO 3D',
+          app: 'アートdeブロック',
           version: '1.0',
           exportedAt: new Date().toISOString(),
           theme: state.theme,
