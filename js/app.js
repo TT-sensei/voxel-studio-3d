@@ -176,6 +176,29 @@
       }, 2200);
     }
 
+    // =========================================================================
+    // ナビキャラのガイド（開くたびに6人からランダムで1人が案内役になる）
+    // =========================================================================
+    const NAVI_IMG_BASE = 'https://tt-sensei.github.io/navi-character-/assets/web/characters/';
+    const GUIDE_CHARS = [
+      { id: 'riku', name: 'りく' },
+      { id: 'sora', name: 'そら' },
+      { id: 'kai', name: 'かい' },
+      { id: 'saku', name: 'さく' },
+      { id: 'tsuki', name: 'つき' },
+      { id: 'nami', name: 'なみ' }
+    ];
+    const guideChar = GUIDE_CHARS[Math.floor(Math.random() * GUIDE_CHARS.length)];
+    const guideImgEl = document.getElementById('guide-img');
+    guideImgEl.addEventListener('error', () => {
+      document.getElementById('guide-panel').style.display = 'none';
+    });
+    function guideSay(expression, text) {
+      guideImgEl.src = NAVI_IMG_BASE + guideChar.id + '/expressions/' + expression + '.webp';
+      document.getElementById('guide-name').textContent = guideChar.name;
+      document.getElementById('guide-text').textContent = text;
+    }
+
     function showConfirmDialog(title, message, onConfirm) {
       const modal = document.getElementById('modal-confirm');
       document.getElementById('confirm-title').textContent = title;
@@ -725,9 +748,17 @@
       showToast('やり直しました');
     }
 
+    let lastGuideCount = 0;
     function updateBlockCountUI() {
-      document.getElementById('block-count').textContent = state.blocks.size;
+      const count = state.blocks.size;
+      document.getElementById('block-count').textContent = count;
       saveWork();
+      if (count === 0 && lastGuideCount > 0) {
+        guideSay('05-surprised', 'まっさらに なったよ。なにを つくろうか？');
+      } else if (count > lastGuideCount && count % 50 === 0 && count - lastGuideCount <= 4) {
+        guideSay('08-celebrating', count + 'こ のブロック！すごい！');
+      }
+      lastGuideCount = count;
     }
 
     // 端末への自動保存（作品・テーマ・音の設定）
@@ -1383,6 +1414,7 @@
         URL.revokeObjectURL(url);
         sound.playPop();
         showToast('作品データをJSON保存しました', 'success');
+        guideSay('01-normal-smile', 'ファイルに ほぞんしたよ');
       } catch (err) {
         showToast('保存に失敗しました', 'error');
       }
@@ -1426,6 +1458,7 @@
           frameCameraForBlocks(sanitized);
           sound.playPop();
           showToast(`${sanitized.length}個のブロックを読み込みました`, 'success');
+          guideSay('02-happy', 'よみこんだよ！');
         } catch (err) {
           showToast('JSONファイルの読み込みに失敗しました', 'error');
         } finally {
@@ -1479,6 +1512,7 @@
 
       sound.playPop();
       showToast('PNGスクリーンショットを保存しました', 'success');
+      guideSay('10-confident', 'しゃしん、とれたよ！');
     });
 
     // =========================================================================
@@ -1698,6 +1732,7 @@
         frameCameraForBlocks(blocks);
         sound.playPop();
         showToast('サンプル作品を読み込みました！', 'success');
+        guideSay('04-idea', 'サンプルを よみこんだよ。じゆうに かえてみてね');
       });
     });
 
@@ -1740,9 +1775,11 @@
       // 端末に残っている作品があれば、続きから始める
       restoreFromSnapshot(savedWork.blocks);
       showToast('つづきの作品を読み込みました');
+      guideSay('02-happy', 'おかえり！まえの つづきから はじまるよ');
     } else {
       // 初めてのときは、すぐ楽しめるよう「小さな赤い屋根の家」を初期配置
       restoreFromSnapshot(generatePresetBlocks('house'));
+      guideSay('02-happy', 'いっしょに つくろう！まずは ブロックを おいてみてね');
     }
     state.undoStack = [];
     state.redoStack = [];

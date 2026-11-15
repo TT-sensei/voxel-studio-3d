@@ -120,3 +120,16 @@ button:disabled { cursor: default; }
 }
 @media (min-width: 768px) { .md\:inline { display: inline; } }
 @media (min-width: 1024px) { .lg\:block { display: block; } }
+
+/* ===== ナビキャラのガイドパネル ===== */
+#guide-panel {
+  position: fixed; right: 12px; bottom: 150px; z-index: 20;
+  display: flex; align-items: flex-end; gap: 8px; pointer-events: none;
+}
+#guide-bubble { max-width: 230px; margin-bottom: 10px; }
+#guide-img { height: 104px; width: auto; filter: drop-shadow(0 6px 10px rgba(15,23,42,.25)); }
+@media (max-width: 639px) {
+  #guide-panel { bottom: 196px; }
+  #guide-bubble { max-width: 160px; }
+  #guide-img { height: 76px; }
+}
