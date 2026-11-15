@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VOXEL STUDIO 3D - 3Dブロック積み上げクリエイター</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%234f46e5'/%3E%3Cpath d='M12 4l7 4v8l-7 4-7-4V8z' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Import Map for Three.js v0.172.0 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./lib/three.module.js",
+        "three/addons/": "./lib/addons/"
+      }
+    }
+  </script>
+
+</head>
+<body class="theme-light">
+  <!-- 3Dキャンバスコンテナ -->
+  <div id="canvas-container"></div>
+
+  <!-- トースト通知エリア -->
+  <div id="toast-container" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2"></div>
+
+  <!-- 左上：タイトル・カウンター・プロジェクト操作・環境設定 -->
+  <header id="ui-top-left" class="fixed top-3 left-3 z-20 flex flex-col gap-2 max-w-[calc(100vw-180px)] sm:max-w-none">
+    <div class="glass-panel rounded-2xl px-3.5 py-2.5 flex flex-wrap items-center gap-2.5 sm:gap-3">
+      <!-- ロゴ＆タイトル -->
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/30 shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-sm sm:text-base font-extrabold tracking-tight leading-none">VOXEL STUDIO 3D</h1>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="text-[11px] opacity-75 font-medium">ブロック数: <strong id="block-count" class="text-indigo-500 font-bold">0</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-6 w-px bg-slate-400/30 hidden sm:block"></div>
+
+      <!-- アクションボタングループ -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <!-- サンプル作品プリセット -->
+        <button id="btn-presets" title="サンプル作品を読み込む" class="ui-btn ui-btn-subtle rounded-xl px-2.5 py-1.5 text-xs font-bold flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span>サンプル</span>
+        </button>
+
+        <!-- JSON保存 -->
+        <button id="btn-export-json" title="作品データをJSONファイルで保存" class="ui-btn ui-btn-subtle rounded-xl px-2.5 py-1.5 text-xs font-bold flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span class="hidden md:inline">保存</span>
+        </button>
+
+        <!-- JSON読込 -->
+        <button id="btn-import-json" title="JSONファイルから作品を読み込む" class="ui-btn ui-btn-subtle rounded-xl px-2.5 py-1.5 text-xs font-bold flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span class="hidden md:inline">読込</span>
+        </button>
+        <input type="file" id="file-input-json" accept=".json,application/json" class="hidden" />
+
+        <!-- PNG撮影 -->
+        <button id="btn-screenshot" title="3DビューをPNG画像として撮影・保存" class="ui-btn bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-2.5 py-1.5 text-xs font-bold flex items-center gap-1 shadow-sm shadow-indigo-500/30">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span>撮影</span>
+        </button>
+      </div>
+
+      <div class="h-6 w-px bg-slate-400/30 hidden lg:block"></div>
+
+      <!-- 背景テーマ切替＆サウンドミュート -->
+      <div class="flex items-center gap-1">
+        <div class="flex items-center rounded-xl p-0.5 bg-slate-500/10 border border-slate-400/20" title="背景スタジオテーマ切替">
+          <button data-theme="light" class="theme-btn px-2 py-1 rounded-lg text-[11px] font-bold transition bg-white text-slate-800 shadow-sm">ライト</button>
+          <button data-theme="sky" class="theme-btn px-2 py-1 rounded-lg text-[11px] font-bold transition opacity-70 hover:opacity-100">スカイ</button>
+        </div>
+
+        <button id="btn-sound" title="効果音 ON/OFF" class="ui-btn ui-btn-subtle rounded-xl p-1.5 ml-1">
+          <svg id="icon-sound-on" class="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>
+          <svg id="icon-sound-off" class="w-4 h-4 text-slate-400 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 左サイド：編集ツール・回転・ミラー対称・Undo/Redo・クリア -->
+  <aside id="ui-left-sidebar" class="fixed left-3 top-24 sm:top-20 z-20 flex flex-col gap-2">
+    <div class="glass-panel rounded-2xl p-2 flex flex-col gap-1.5">
+      <div class="text-[10px] font-bold uppercase tracking-wider opacity-60 text-center pb-0.5">ツール</div>
+
+      <!-- 配置 (Build) -->
+      <button data-tool="build" class="tool-btn ui-btn rounded-xl p-2.5 flex flex-col items-center gap-1 bg-indigo-600 text-white shadow-md shadow-indigo-500/30" title="配置モード (クリックでブロック設置)">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+        <span class="text-[10px] font-bold">配置</span>
+      </button>
+
+      <!-- 削除 (Erase) -->
+      <button data-tool="erase" class="tool-btn ui-btn ui-btn-subtle rounded-xl p-2.5 flex flex-col items-center gap-1" title="削除モード (配置中でもShift+クリック/右クリックで削除可)">
+        <svg class="w-5 h-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M20 20H7L3 16C2.5 15.5 2.5 14.5 3 14L13 4C13.5 3.5 14.5 3.5 15 4L20 9C20.5 9.5 20.5 10.5 20 11L11 20"/>
+          <line x1="18" y1="13" x2="11" y2="6"/>
+        </svg>
+        <span class="text-[10px] font-bold">削除</span>
+      </button>
+
+      <!-- ペイント (Paint) -->
+      <button data-tool="paint" class="tool-btn ui-btn ui-btn-subtle rounded-xl p-2.5 flex flex-col items-center gap-1" title="ペイントモード (既存ブロックを選択色・質感に塗り替え)">
+        <svg class="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M18.37 2.63 14 7l-1.59-1.59a2 2 0 0 0-2.82 0L8 7l9 9 1.59-1.59a2 2 0 0 0 0-2.82L17 10l4.37-4.37a2.12 2.12 0 1 0-3-3Z"/>
+          <path d="M9 8c-2 3-4 3.5-7 4l8 10c2-1 6-5 6-7"/>
+        </svg>
+        <span class="text-[10px] font-bold">塗替</span>
+      </button>
+
+      <!-- スポイト (Eyedropper) -->
+      <button data-tool="eyedropper" class="tool-btn ui-btn ui-btn-subtle rounded-xl p-2.5 flex flex-col items-center gap-1" title="スポイトモード (既存ブロックの色・形状・質感を吸い取る)">
+        <svg class="w-5 h-5 text-cyan-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/>
+          <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>
+        </svg>
+        <span class="text-[10px] font-bold">吸取</span>
+      </button>
+
+      <div class="h-px w-full bg-slate-400/25 my-0.5"></div>
+
+      <!-- 回転 (R) -->
+      <button id="btn-rotate" class="ui-btn ui-btn-subtle rounded-xl p-2 flex flex-col items-center gap-0.5" title="ブロックを90度回転 (ショートカット: Rキー)">
+        <svg class="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/>
+        </svg>
+        <span class="text-[10px] font-bold">回転 <span id="rot-deg" class="opacity-70">0°</span></span>
+      </button>
+
+      <!-- ミラー対称 X / Z -->
+      <div class="text-[9px] font-bold uppercase tracking-wider opacity-60 text-center mt-0.5">対称ミラー</div>
+      <div class="grid grid-cols-2 gap-1">
+        <button id="btn-mirror-x" class="ui-btn ui-btn-subtle rounded-lg py-1.5 text-[11px] font-extrabold text-center" title="X軸（左右）対称モード切替">X</button>
+        <button id="btn-mirror-z" class="ui-btn ui-btn-subtle rounded-lg py-1.5 text-[11px] font-extrabold text-center" title="Z軸（前後）対称モード切替">Z</button>
+      </div>
+
+      <div class="h-px w-full bg-slate-400/25 my-0.5"></div>
+
+      <!-- Undo / Redo -->
+      <div class="grid grid-cols-2 gap-1">
+        <button id="btn-undo" disabled class="ui-btn ui-btn-subtle rounded-lg p-1.5 flex items-center justify-center disabled:opacity-35" title="元に戻す (Ctrl+Z)">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+          </svg>
+        </button>
+        <button id="btn-redo" disabled class="ui-btn ui-btn-subtle rounded-lg p-1.5 flex items-center justify-center disabled:opacity-35" title="やり直す (Ctrl+Y)">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 全消去 -->
+      <button id="btn-clear-all" class="ui-btn rounded-xl p-1.5 mt-0.5 bg-rose-500/15 hover:bg-rose-500 text-rose-500 hover:text-white transition flex flex-col items-center gap-0.5" title="すべてのブロックを消去">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        <span class="text-[9px] font-bold">全消去</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- 右上：カメラ視点プリセット＆操作ガイド -->
+  <aside id="ui-top-right" class="fixed top-3 right-3 z-20 flex flex-col items-end gap-2">
+    <div class="glass-panel rounded-2xl p-2 flex flex-col gap-1.5">
+      <div class="flex items-center justify-between gap-2 px-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider opacity-65">カメラ視点</span>
+        <button id="btn-toggle-guide" class="text-[11px] font-bold text-indigo-500 hover:underline flex items-center gap-0.5">
+          <span>操作ガイド</span>
+          <svg id="guide-chevron" class="w-3.5 h-3.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+      </div>
+      <div class="grid grid-cols-4 gap-1">
+        <button data-cam="reset" class="cam-btn ui-btn ui-btn-subtle rounded-lg px-2 py-1.5 text-[11px] font-bold" title="初期視点にリセット">リセット</button>
+        <button data-cam="iso" class="cam-btn ui-btn ui-btn-subtle rounded-lg px-2 py-1.5 text-[11px] font-bold" title="反対側の斜め視点">斜め</button>
+        <button data-cam="front" class="cam-btn ui-btn ui-btn-subtle rounded-lg px-2 py-1.5 text-[11px] font-bold" title="正面から見る">正面</button>
+        <button data-cam="top" class="cam-btn ui-btn ui-btn-subtle rounded-lg px-2 py-1.5 text-[11px] font-bold" title="真上から見下ろす">上面</button>
+      </div>
+
+      <!-- 折りたたみ可能な操作ガイド -->
+      <div id="help-guide-body" class="mt-1 pt-2 border-t border-slate-400/20 text-[11px] space-y-1 max-w-[235px] leading-relaxed">
+        <div class="flex justify-between gap-2"><span class="opacity-70">ブロック配置:</span><span class="font-bold">左クリック</span></div>
+        <div class="flex justify-between gap-2"><span class="opacity-70">素早く削除:</span><span class="font-bold">Shift+クリック / 右クリック</span></div>
+        <div class="flex justify-between gap-2"><span class="opacity-70">ブロック回転:</span><span class="font-bold">R キー</span></div>
+        <div class="flex justify-between gap-2"><span class="opacity-70">視点回転:</span><span class="font-bold">右ドラッグ</span></div>
+        <div class="flex justify-between gap-2"><span class="opacity-70">平行移動:</span><span class="font-bold">中ドラッグ / Shift+右</span></div>
+        <div class="flex justify-between gap-2"><span class="opacity-70">ズーム:</span><span class="font-bold">ホイール / ピンチ</span></div>
+        <div class="flex justify-between gap-2"><span class="opacity-70">履歴操作:</span><span class="font-bold">Ctrl+Z / Ctrl+Y</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 下部中央：ブロック形状・質感・カラーパレット -->
+  <footer id="ui-bottom-bar" class="fixed bottom-3 left-1/2 -translate-x-1/2 z-20 w-[calc(100vw-24px)] max-w-4xl">
+    <div class="glass-panel rounded-2xl p-2.5 sm:p-3 flex flex-col gap-2.5">
+      <!-- 上段：ブロック形状セレクター ＋ 質感セレクター -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <!-- ブロック形状 -->
+        <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+          <button data-shape="voxel" class="shape-btn ui-btn rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm shrink-0" title="1x1 標準ボクセル">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            <span class="text-xs font-bold">1x1 ボクセル</span>
+          </button>
+
+          <button data-shape="stud" class="shape-btn ui-btn ui-btn-subtle rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0" title="1x1 レゴ風スタッド付きブロック">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="7" width="16" height="13" rx="2"/><rect x="8" y="3" width="8" height="4" rx="1"/></svg>
+            <span class="text-xs font-bold">1x1 ポッチ</span>
+          </button>
+
+          <button data-shape="brick2x1" class="shape-btn ui-btn ui-btn-subtle rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0" title="2x1 ブロック (Rキーで向き変更)">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="8" width="20" height="11" rx="2"/><rect x="5" y="4" width="5" height="4" rx="1"/><rect x="14" y="4" width="5" height="4" rx="1"/></svg>
+            <span class="text-xs font-bold">2x1 ブロック</span>
+          </button>
+
+          <button data-shape="brick2x2" class="shape-btn ui-btn ui-btn-subtle rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0" title="2x2 大型ブロック">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="1.5" fill="currentColor"/><circle cx="15.5" cy="11" r="1.5" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/></svg>
+            <span class="text-xs font-bold">2x2 ブロック</span>
+          </button>
+
+          <button data-shape="slope" class="shape-btn ui-btn ui-btn-subtle rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0" title="スロープ / 屋根パーツ (Rキーで傾斜方向変更)">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="4 19 20 19 20 6 4 19"/></svg>
+            <span class="text-xs font-bold">スロープ</span>
+          </button>
+
+          <button data-shape="cylinder" class="shape-btn ui-btn ui-btn-subtle rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0" title="シリンダー / 円柱パーツ">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/></svg>
+            <span class="text-xs font-bold">円柱</span>
+          </button>
+        </div>
+
+        <!-- マテリアル質感セレクター -->
+        <div class="flex items-center gap-1 bg-slate-500/10 p-1 rounded-xl border border-slate-400/20 shrink-0">
+          <button data-material="standard" class="mat-btn px-2 py-1 rounded-lg text-[11px] font-bold transition bg-indigo-600 text-white shadow-sm">標準</button>
+          <button data-material="matte" class="mat-btn px-2 py-1 rounded-lg text-[11px] font-bold transition opacity-75 hover:opacity-100">マット</button>
+          <button data-material="clear" class="mat-btn px-2 py-1 rounded-lg text-[11px] font-bold transition opacity-75 hover:opacity-100">クリア</button>
+          <button data-material="neon" class="mat-btn px-2 py-1 rounded-lg text-[11px] font-bold transition opacity-75 hover:opacity-100">ネオン</button>
+        </div>
+      </div>
+
+      <!-- 下段：18色カラーパレット ＋ カスタムカラーピッカー -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+        <div id="color-palette" class="flex items-center gap-1.5"></div>
+        <div class="h-6 w-px bg-slate-400/30 mx-0.5 shrink-0"></div>
+        <!-- 自由カラーピッカー -->
+        <label class="relative w-7 h-7 rounded-full overflow-hidden cursor-pointer border-2 border-white shadow-md shrink-0 flex items-center justify-center bg-gradient-to-tr from-pink-500 via-amber-400 to-cyan-400 hover:scale-110 transition" title="カスタムカラーを選択">
+          <input type="color" id="custom-color-picker" value="#ff6b6b" class="opacity-0 absolute inset-0 w-full h-full cursor-pointer" />
+          <svg class="w-3.5 h-3.5 text-white drop-shadow pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </label>
+      </div>
+    </div>
+  </footer>
+
+  <!-- サンプルプリセット選択モーダル -->
+  <div id="modal-presets" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel rounded-3xl max-w-lg w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-extrabold">サンプル作品プリセット</h2>
+          <p class="text-xs opacity-70 mt-0.5">ワンクリックで立体作品をロードして自由に改造できます</p>
+        </div>
+        <button id="close-presets" class="ui-btn ui-btn-subtle rounded-full p-2">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button data-preset="house" class="preset-card ui-btn ui-btn-subtle rounded-2xl p-4 text-left flex flex-col gap-1.5 hover:border-indigo-500">
+          <div class="text-2xl">🏡</div>
+          <div class="font-extrabold text-sm">小さな赤い屋根の家</div>
+          <div class="text-[11px] opacity-75">スロープ屋根・クリアガラス窓・煙突・お庭の木があるコテージ</div>
+        </button>
+        <button data-preset="robot" class="preset-card ui-btn ui-btn-subtle rounded-2xl p-4 text-left flex flex-col gap-1.5 hover:border-indigo-500">
+          <div class="text-2xl">🤖</div>
+          <div class="font-extrabold text-sm">レトロロボット</div>
+          <div class="text-[11px] opacity-75">ネオンの目と胸コアが光るポップな二足歩行ロボット</div>
+        </button>
+        <button data-preset="garden" class="preset-card ui-btn ui-btn-subtle rounded-2xl p-4 text-left flex flex-col gap-1.5 hover:border-indigo-500">
+          <div class="text-2xl">🌸</div>
+          <div class="font-extrabold text-sm">桜と池のミニ庭園</div>
+          <div class="text-[11px] opacity-75">クリアブルーの水面・太鼓橋・満開の桜・石灯籠のジオラマ</div>
+        </button>
+        <button data-preset="rocket" class="preset-card ui-btn ui-btn-subtle rounded-2xl p-4 text-left flex flex-col gap-1.5 hover:border-indigo-500">
+          <div class="text-2xl">🚀</div>
+          <div class="font-extrabold text-sm">スペースロケット</div>
+          <div class="text-[11px] opacity-75">発射台とネオン噴射炎を備えた宇宙ロケット</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- スクリーンショット撮影オプションモーダル -->
+  <div id="modal-screenshot" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel rounded-3xl max-w-sm w-full p-6 shadow-2xl">
+      <h2 class="text-lg font-extrabold mb-1">PNGスクリーンショット撮影</h2>
+      <p class="text-xs opacity-75 mb-4">現在の3Dビューを綺麗なPNG画像として保存します。</p>
+      <label class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-500/10 cursor-pointer mb-5">
+        <input type="checkbox" id="chk-hide-grid-shot" checked class="w-4 h-4 accent-indigo-600 rounded" />
+        <span class="text-xs font-bold">撮影時にグリッド線と対称ガイドを一時非表示にする</span>
+      </label>
+      <div class="flex justify-end gap-2">
+        <button id="cancel-screenshot" class="ui-btn ui-btn-subtle rounded-xl px-4 py-2 text-xs font-bold">キャンセル</button>
+        <button id="confirm-screenshot" class="ui-btn bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-4 py-2 text-xs font-bold shadow-md shadow-indigo-500/30">撮影して保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- カスタム確認モーダル（全消去など） -->
+  <div id="modal-confirm" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel rounded-3xl max-w-sm w-full p-6 shadow-2xl">
+      <h2 id="confirm-title" class="text-lg font-extrabold mb-1">確認</h2>
+      <p id="confirm-message" class="text-xs opacity-80 mb-5 leading-relaxed">本当に実行しますか？</p>
+      <div class="flex justify-end gap-2">
+        <button id="confirm-cancel" class="ui-btn ui-btn-subtle rounded-xl px-4 py-2 text-xs font-bold">キャンセル</button>
+        <button id="confirm-ok" class="ui-btn bg-rose-600 hover:bg-rose-500 text-white rounded-xl px-4 py-2 text-xs font-bold shadow-md shadow-rose-500/30">実行する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- メインアプリケーションスクリプト -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
